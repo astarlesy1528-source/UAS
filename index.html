@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safety Dashboard — Manrisk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">MS</div>
+        <div class="brand-text">
+          <strong>Safety Dashboard</strong>
+          <span>Manrisk Data</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item active" data-page="ringkasan">
+          <span class="nav-icon">&#9673;</span>
+          <span>Ringkasan</span>
+        </button>
+        <button class="nav-item" data-page="kecelakaan">
+          <span class="nav-icon">&#9888;</span>
+          <span>Kecelakaan &amp; Insiden</span>
+        </button>
+        <button class="nav-item" data-page="kerja">
+          <span class="nav-icon">&#128221;</span>
+          <span>Izin &amp; Jam Kerja</span>
+        </button>
+        <button class="nav-item" data-page="observasi">
+          <span class="nav-icon">&#128065;</span>
+          <span>Observasi &amp; Program</span>
+        </button>
+        <button class="nav-item" data-page="sdm">
+          <span class="nav-icon">&#128101;</span>
+          <span>SDM &amp; Kepatuhan</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div id="data-status" class="data-status">
+          <span class="spinner"></span> Memuat data...
+        </div>
+        <button class="refresh-btn" id="btn-refresh">&#8635; Muat Ulang</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="page-title">Ringkasan</h1>
+          <p id="page-subtitle" class="muted">Dashboard Keselamatan dan Kesehatan Kerja</p>
+        </div>
+        <div class="topbar-right">
+          <div class="last-updated muted" id="last-updated">-</div>
+        </div>
+      </header>
+
+      <section class="page active" id="page-ringkasan"></section>
+      <section class="page" id="page-kecelakaan"></section>
+      <section class="page" id="page-kerja"></section>
+      <section class="page" id="page-observasi"></section>
+      <section class="page" id="page-sdm"></section>
+
+      <footer class="footer muted">
+        Safety Dashboard &middot; Data bersumber langsung dari Google Sheets (publik) dan dimuat otomatis saat halaman dibuka.
+      </footer>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pages.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
