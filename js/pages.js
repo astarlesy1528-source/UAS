@@ -1,100 +1,125 @@
 const Pages = (() => {
   const UI = window.UI, D = Data;
   const { esc, kpi, card, sectionTitle, placeholder, table, badgeState } = UI;
+  const isTrue = v => String(v).toLowerCase() === 'true';
 
-  function monthTotal(key, dateField, sumField) {
-    const m = new Map();
-    D.table(key).forEach(r => {
-      const ym = D.normalizeDate(r[dateField]) || '(tanpa tanggal)';
-      m.set(ym, (m.get(ym) || 0) + D.num(r[sumField]));
-    });
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }
-  function monthCount(key, dateField) {
-    const m = new Map();
-    D.table(key).forEach(r => {
-      const ym = D.normalizeDate(r[dateField]) || '(tanpa tanggal)';
-      m.set(ym, (m.get(ym) || 0) + 1);
-    });
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }
+  function monthCount(key, dateField) { return D.fGroupByMonth(key, dateField); }
+  function monthTotal(key, dateField, sumField) { return D.fSumByMonth(key, dateField, sumField); }
   function m2(ym) {
     if (!ym || !String(ym).includes('-')) return ym;
     const [y, m] = String(ym).split('-').map(Number);
     return new Date(y, m - 1, 1).toLocaleString('id-ID', { month: 'short' }) + ' ' + y;
   }
   function workforceSnapshot() {
-    const rows = D.table('jamKerja');
+    const rows = D.fTable('jamKerja');
     if (!rows.length) return 0;
     const maxDate = rows.reduce((mx, r) => (r.Tanggal || '') > mx ? r.Tanggal : mx, '');
     return rows.filter(r => r.Tanggal === maxDate).reduce((a, r) => a + D.num(r.Jml_Pekerja), 0);
   }
-  function countByCount(key, name, cb) { return D.table(key).filter(cb).length; }
-  const isTrue = v => String(v).toLowerCase() === 'true';
+  function monthlyRates() {
+    const kec = D.fTable('kecelakaan');
+    const jk = D.fTable('jamKerja');
+    const hoursMap = new Map();
+    jk.forEach(r => {
+      const ym = D.normalizeDate(r.Tanggal);
+      hoursMap.set(ym, (hoursMap.get(ym) || 0) + D.num(r.Total_Jam));
+    });
+    const recMap = new Map(), ltiMap = new Map();
+    kec.forEach(r => {
+      const ym = D.normalizeDate(r.Tanggal);
+      if (!ym) return;
+      if (isTrue(r.Termasuk_TRIR)) recMap.set(ym, (recMap.get(ym) || 0) + 1);
+      if (String(r.Jenis).toLowerCase().includes('lost time')) ltiMap.set(ym, (ltiMap.get(ym) || 0) + 1);
+    });
+    const months = [...new Set([...hoursMap.keys(), ...recMap.keys(), ...ltiMap.keys()])].sort();
+    return {
+      labels: months.map(m2),
+      trir: months.map(m => hoursMap.get(m) ? ((recMap.get(m) || 0) * 1000000) / hoursMap.get(m) : 0),
+      ltifr: months.map(m => hoursMap.get(m) ? ((ltiMap.get(m) || 0) * 1000000) / hoursMap.get(m) : 0)
+    };
+  }
+  function overallRates() {
+    const kec = D.fTable('kecelakaan');
+    const rec = kec.filter(r => isTrue(r.Termasuk_TRIR)).length;
+    const lti = kec.filter(r => String(r.Jenis).toLowerCase().includes('lost time')).length;
+    const hours = D.fSumRows('jamKerja', 'Total_Jam');
+    return {
+      rec, lti, hours,
+      trir: hours ? (rec * 1000000) / hours : 0,
+      ltifr: hours ? (lti * 1000000) / hours : 0
+    };
+  }
+  const fmtRate = v => (Number(v) || 0).toFixed(2);
 
   // ============================ PAGE 1 · RINGKASAN ============================
   function ringkasan() {
     let out = '';
-    const totalJam = D.sumRows('jamKerja', 'Total_Jam');
+    const totalJam = D.fSumRows('jamKerja', 'Total_Jam');
     const totalPekerja = workforceSnapshot();
-    const kec = D.table('kecelakaan');
-    const trir = kec.filter(r => isTrue(r.Termasuk_TRIR)).length;
-    const hc = D.table('hampirCelaka').length;
-    const henti = D.table('hentiKerja');
+    const kec = D.fTable('kecelakaan');
+    const trirN = kec.filter(r => isTrue(r.Termasuk_TRIR)).length;
+    const hc = D.fTable('hampirCelaka');
+    const henti = D.fTable('hentiKerja');
     const durasiHenti = henti.reduce((a, r) => a + D.num(r.Durasi_Jam), 0);
-    const izin = D.table('izinKerja');
-    const izinN = izin.length;
+    const izin = D.fTable('izinKerja');
     const izinV = izin.filter(r => r.Kontrol_Terverifikasi === 'Terverifikasi').length;
-    const auditRows = D.table('audit');
+    const auditRows = D.fTable('audit');
     const auditAvg = auditRows.length ? (auditRows.reduce((a, r) => a + D.num(r.Skor), 0) / auditRows.length) : 0;
-    const tind = D.table('tindakan');
+    const tind = D.fTable('tindakan');
     const terlambat = tind.filter(r => String(r.Status).toLowerCase().includes('terlambat')).length;
+    const rates = overallRates();
 
     out += `<div class="grid kpis">
       ${kpi('Total Pekerja', D.fmt(totalPekerja), 'snapshot dari jam kerja', 'success')}
       ${kpi('Total Jam Kerja', D.fmt(totalJam), 'seluruh site')}
-      ${kpi('Kecelakaan', D.fmt(kec.length), `${D.fmt(trir)} kasus TRIR`, 'danger')}
-      ${kpi('Hampir Celaka', D.fmt(hc), 'kejadian terlaporkan', 'warning')}
+      ${kpi('Kecelakaan', D.fmt(kec.length), `${D.fmt(trirN)} kasus TRIR`, 'danger')}
+      ${kpi('Hampir Celaka', D.fmt(hc.length), 'kejadian terlaporkan', 'warning')}
+      ${kpi('TRIR', fmtRate(rates.trir), 'per 1.000.000 jam kerja', 'danger')}
+      ${kpi('LTIFR', fmtRate(rates.ltifr), 'per 1.000.000 jam kerja', 'warning')}
       ${kpi('Henti Kerja', D.fmt(henti.length), `${D.fmt(durasiHenti)} jam`)}
-      ${kpi('Izin Kerja', D.fmt(izinN), `${D.percent(izinV, izinN)}% terverifikasi`)}
-      ${kpi('Tindakan Terlambat', D.fmt(terlambat), 'belum selesai', 'danger')}
-      ${kpi('Skor Audit Rata-rata', D.fmt(auditAvg.toFixed(1)), `dari ${D.fmt(auditRows.length)} audit`)}
+      ${kpi('Izin Kerja', D.fmt(izin.length), `${D.percent(izinV, izin.length)}% terverifikasi`)}
     </div>`;
 
     out += `<div class="section">${sectionTitle('Tren &amp; Analisis')}<div class="grid span2">`;
     out += card('Kecelakaan per Bulan', 'Distribusi insiden berdasarkan tanggal', `<div class="chart-box"><canvas id="ch-r-kec"></canvas></div>`);
     out += card('Hampir Celaka per Energi', 'Berdasarkan jenis energi (hampir SIF)', `<div class="chart-box"><canvas id="ch-r-hc"></canvas></div>`);
     out += `</div><div class="grid span2" style="margin-top:16px">`;
+    out += card('TRIR &amp; LTIFR per Bulan', 'Frekuensi kecelakaan per 1.000.000 jam kerja', `<div class="chart-box sm"><canvas id="ch-r-rate"></canvas></div>`);
     out += card('Total Jam Kerja per Bulan', 'Akumulasi seluruh site', `<div class="chart-box sm"><canvas id="ch-r-jam"></canvas></div>`);
-    out += card('Tindakan per Prioritas', 'Distribusi tindak lanjut', `<div class="chart-box sm"><canvas id="ch-r-prio"></canvas></div>`);
     out += `</div></div>`;
 
     const mKec = monthCount('kecelakaan', 'Tanggal');
     UI.bar('ch-r-kec', mKec.map(x => m2(x[0])), mKec.map(x => x[1]));
-    const hcByEnergi = D.countBy('hampirCelaka', 'Energi');
+    const hcByEnergi = D.fCountBy('hampirCelaka', 'Energi');
     UI.bar('ch-r-hc', hcByEnergi.map(x => x[0]), hcByEnergi.map(x => x[1]), { horizontal: true });
+    const mRates = monthlyRates();
+    UI.line('ch-r-rate', mRates.labels, [
+      { label: 'TRIR', data: mRates.trir.map(v => +v.toFixed(2)), color: '#e0453e' },
+      { label: 'LTIFR', data: mRates.ltifr.map(v => +v.toFixed(2)), color: '#f59e0b' }
+    ]);
     const mJam = monthTotal('jamKerja', 'Tanggal', 'Total_Jam');
     UI.line('ch-r-jam', mJam.map(x => m2(x[0])), [{ label: 'Total Jam Kerja', data: mJam.map(x => x[1]) }]);
-    const prio = D.countBy('tindakan', 'Prioritas');
-    UI.doughnut('ch-r-prio', prio.map(x => x[0]), prio.map(x => x[1]));
     return out;
   }
 
   // ============================ PAGE 2 · KECELAKAAN & INSIDEN ============================
   function kecelakaan() {
     let out = '';
-    const kec = D.table('kecelakaan');
+    const kec = D.fTable('kecelakaan');
     const trir = kec.filter(r => isTrue(r.Termasuk_TRIR)).length;
     const lost = kec.reduce((a, r) => a + D.num(r.Jumlah_Hari_Hilang), 0);
-    const hc = D.table('hampirCelaka');
+    const hc = D.fTable('hampirCelaka');
     const hcSif = hc.filter(r => String(r.Potensi_SIF).toLowerCase().includes('sif')).length;
-    const henti = D.table('hentiKerja');
+    const henti = D.fTable('hentiKerja');
     const durasiHenti = henti.reduce((a, r) => a + D.num(r.Durasi_Jam), 0);
+    const rates = overallRates();
 
     out += `<div class="grid kpis">
       ${kpi('Total Kecelakaan', D.fmt(kec.length), 'semua jenis', 'danger')}
       ${kpi('Kasus TRIR', D.fmt(trir), `${D.percent(trir, kec.length)}% dari total`)}
       ${kpi('Hari Hilang', D.fmt(lost), 'akibat kecelakaan', 'warning')}
+      ${kpi('TRIR', fmtRate(rates.trir), 'per 1.000.000 jam kerja')}
+      ${kpi('LTIFR', fmtRate(rates.ltifr), 'per 1.000.000 jam kerja')}
       ${kpi('Hampir Celaka', D.fmt(hc.length), `${D.fmt(hcSif)} berpotensi SIF`, 'warning')}
       ${kpi('Henti Kerja', D.fmt(henti.length), `${D.fmt(durasiHenti)} jam konsekuensi`)}
     </div>`;
@@ -105,7 +130,7 @@ const Pages = (() => {
     out += card('Status TRIR', '', `<div class="chart-box sm"><canvas id="ch-k-trir"></canvas></div>`);
     out += `</div></div>`;
 
-    const byJenis = D.countBy('kecelakaan', 'Jenis');
+    const byJenis = D.fCountBy('kecelakaan', 'Jenis');
     const byBulan = monthCount('kecelakaan', 'Tanggal');
     UI.bar('ch-k-jenis', byJenis.map(x => x[0]), byJenis.map(x => x[1]), { horizontal: true });
     UI.bar('ch-k-bulan', byBulan.map(x => m2(x[0])), byBulan.map(x => x[1]));
@@ -116,9 +141,9 @@ const Pages = (() => {
     out += card('Henti Kerja per Alasan', '', `<div class="chart-box"><canvas id="ch-k-henti"></canvas></div>`);
     out += `</div>`;
 
-    const hcEnergi = D.countBy('hampirCelaka', 'Energi');
+    const hcEnergi = D.fCountBy('hampirCelaka', 'Energi');
     UI.doughnut('ch-k-hc', hcEnergi.map(x => x[0]), hcEnergi.map(x => x[1]));
-    const heAlasan = D.countBy('hentiKerja', 'Alasan');
+    const heAlasan = D.fCountBy('hentiKerja', 'Alasan');
     UI.bar('ch-k-henti', heAlasan.map(x => x[0]), heAlasan.map(x => x[1]));
 
     const cols = [
@@ -137,11 +162,11 @@ const Pages = (() => {
   // ============================ PAGE 3 · IZIN & JAM KERJA ============================
   function kerja() {
     let out = '';
-    const izin = D.table('izinKerja');
+    const izin = D.fTable('izinKerja');
     const izinV = izin.filter(r => r.Kontrol_Terverifikasi === 'Terverifikasi').length;
     const jsaAvg = izin.length ? (izin.reduce((a, r) => a + D.num(r['Skor_Kualitas_JSA']), 0) / izin.length) : 0;
-    const totalJam = D.sumRows('jamKerja', 'Total_Jam');
-    const totalLembur = D.sumRows('jamKerja', 'Jam_Lembur');
+    const totalJam = D.fSumRows('jamKerja', 'Total_Jam');
+    const totalLembur = D.fSumRows('jamKerja', 'Jam_Lembur');
 
     out += `<div class="grid kpis">
       ${kpi('Total Izin Kerja', D.fmt(izin.length), 'jenis pekerjaan berisiko')}
@@ -158,13 +183,13 @@ const Pages = (() => {
     out += card('Jam Kerja per Site', 'Total jam kerja keseluruhan', `<div class="chart-box sm"><canvas id="ch-jk-site"></canvas></div>`);
     out += `</div>`;
 
-    const byJenis = D.countBy('izinKerja', 'Jenis_Pekerjaan');
+    const byJenis = D.fCountBy('izinKerja', 'Jenis_Pekerjaan');
     const jsaSorted = izin.slice().sort((a, b) => D.num(b['Skor_Kualitas_JSA']) - D.num(a['Skor_Kualitas_JSA'])).slice(0, 10);
     UI.bar('ch-iz-jenis', byJenis.map(x => x[0]), byJenis.map(x => x[1]), { horizontal: true });
-    const statusIz = D.countBy('izinKerja', 'Kontrol_Terverifikasi');
+    const statusIz = D.fCountBy('izinKerja', 'Kontrol_Terverifikasi');
     UI.doughnut('ch-iz-status', statusIz.map(x => x[0]), statusIz.map(x => x[1]));
     UI.bar('ch-iz-jsa', jsaSorted.map(r => r.ID_Izin), jsaSorted.map(r => D.num(r['Skor_Kualitas_JSA'])));
-    const jamSite = D.sumBy('jamKerja', 'ID_Site', 'Total_Jam');
+    const jamSite = D.fSumBy('jamKerja', 'ID_Site', 'Total_Jam');
     UI.bar('ch-jk-site', jamSite.map(x => x[0]), jamSite.map(x => x[1]));
 
     out += `<div class="section">${card('Jam Kerja per Bulan', 'Akumulasi total jam kerja', `<div class="chart-box"><canvas id="ch-jk-bulan"></canvas></div>`)}</div>`;
@@ -187,20 +212,20 @@ const Pages = (() => {
   // ============================ PAGE 4 · OBSERVASI & PROGRAM ============================
   function observasi() {
     let out = '';
-    const aud = D.table('audit');
-    const oet = D.table('observasiEnergiTinggi');
+    const aud = D.fTable('audit');
+    const oet = D.fTable('observasiEnergiTinggi');
     const oetV = oet.filter(r => r.Kontrol_Terverifikasi === 'Terverifikasi').length;
-    const kl = D.table('kunjunganLapangan');
+    const kl = D.fTable('kunjunganLapangan');
     const klTemuan = kl.reduce((a, r) => a + D.num(r.Jml_Temuan), 0);
-    const st = D.table('safetyTalk');
+    const st = D.fTable('safetyTalk');
     const stPeserta = st.reduce((a, r) => a + D.num(r.Jml_Peserta), 0);
-    const pel = D.table('pelatihan');
+    const pel = D.fTable('pelatihan');
     const pelPeserta = pel.reduce((a, r) => a + D.num(r.Jml_Peserta), 0);
     const pelLulus = pel.reduce((a, r) => a + D.num(r.Jml_Lulus), 0);
     const pro = D.table('program');
     const audAvg = aud.length ? (aud.reduce((a, r) => a + D.num(r.Skor), 0) / aud.length) : 0;
     const observasiOk = D.ok('observasi');
-    const observRows = D.table('observasi');
+    const observRows = D.fTable('observasi');
 
     out += `<div class="grid kpis">
       ${kpi('Rata-rata Skor Audit', D.fmt(audAvg.toFixed(1)), `${D.fmt(aud.length)} audit`)}
@@ -215,7 +240,7 @@ const Pages = (() => {
     if (observasiOk) {
       out += card('Observasi Keselamatan', 'Jumlah observasi yang dicatat', `<div class="chart-box sm"><canvas id="ch-ob-umum"></canvas></div>`);
     } else {
-      out += card('Observasi Keselamatan', '', placeholder('Sumber data "Observasi" tidak dapat dimuat (HTTP 404). Periksa link/gid sheet, lalu klik "Muat Ulang".', true));
+      out += card('Observasi Keselamatan', '', placeholder('Sumber data "Observasi" tidak dapat dimuat. Periksa link/gid sheet, lalu klik "Muat Ulang".', true));
     }
     out += card('Observasi Energi Tinggi per Energi', 'Penerapan kontrol energi berpotensi fatal', `<div class="chart-box"><canvas id="ch-ob-oet"></canvas></div>`);
     out += `</div><div class="grid span2" style="margin-top:16px">`;
@@ -224,13 +249,14 @@ const Pages = (() => {
     out += `</div></div>`;
 
     if (observasiOk && observRows.length) {
-      UI.doughnut('ch-ob-umum', ['Observasi', 'Base'], [observRows.length, 1]);
+      const obPerKategori = D.fCountBy('observasi', 'Kategori_Temuan');
+      UI.bar('ch-ob-umum', obPerKategori.map(x => x[0]), obPerKategori.map(x => x[1]), { horizontal: true });
     }
-    const oetList = D.countBy('observasiEnergiTinggi', 'Energi');
+    const oetList = D.fCountBy('observasiEnergiTinggi', 'Energi');
     UI.bar('ch-ob-oet', oetList.map(x => x[0]), oetList.map(x => x[1]), { horizontal: true });
     const audSorted = aud.slice().sort((a, b) => (a.Tanggal || '').localeCompare(b.Tanggal || ''));
     UI.line('ch-ob-aud', audSorted.map(r => r.Tanggal), [{ label: 'Skor Audit', data: audSorted.map(r => D.num(r.Skor)) }]);
-    const klList = D.countBy('kunjunganLapangan', 'Pemimpin');
+    const klList = D.fCountBy('kunjunganLapangan', 'Pemimpin');
     UI.bar('ch-k-kl', klList.map(x => x[0]), klList.map(x => x[1]));
 
     out += `<div class="section">${sectionTitle('Program &amp; Pelatihan')}<div class="grid span3" style="margin-top:0">`;
@@ -239,9 +265,9 @@ const Pages = (() => {
     out += card('Program K3', '', `<ul class="prog">${pro.map(p => `<li>${esc(p['Nama_Program'])} <span class="muted">(${esc(p.ID_Program)})</span></li>`).join('') || '<li class="muted">Tidak ada program.</li>'}</ul>`);
     out += `</div></div>`;
 
-    const stTema = D.countBy('safetyTalk', 'Tema');
+    const stTema = D.fCountBy('safetyTalk', 'Tema');
     UI.bar('ch-ob-st', stTema.map(x => x[0]), stTema.map(x => x[1]), { horizontal: true });
-    const pelJenis = D.countBy('pelatihan', 'Jenis');
+    const pelJenis = D.fCountBy('pelatihan', 'Jenis');
     UI.doughnut('ch-ob-pel', pelJenis.map(x => x[0]), pelJenis.map(x => x[1]));
 
     const klCols = [
@@ -261,8 +287,8 @@ const Pages = (() => {
   function sdm() {
     let out = '';
     const kar = D.table('karyawan');
-    const surv = D.table('surveiIklimK3');
-    const tind = D.table('tindakan');
+    const surv = D.fTable('surveiIklimK3');
+    const tind = D.fTable('tindakan');
     const tTerlambat = tind.filter(r => String(r.Status).toLowerCase().includes('terlambat')).length;
     const tSelesai = tind.filter(r => String(r.Status).toLowerCase().includes('selesai')).length;
     const sif = tind.filter(r => String(r.Terkait_SIF).toLowerCase().includes('terkait')).length;
@@ -303,8 +329,8 @@ const Pages = (() => {
     out += card('per Prioritas', '', `<div class="chart-box sm"><canvas id="ch-sd-prio"></canvas></div>`);
     out += `</div></div>`;
 
-    const st = D.countBy('tindakan', 'Status');
-    const pr = D.countBy('tindakan', 'Prioritas');
+    const st = D.fCountBy('tindakan', 'Status');
+    const pr = D.fCountBy('tindakan', 'Prioritas');
     UI.doughnut('ch-sd-status', st.map(x => x[0]), st.map(x => x[1]));
     UI.doughnut('ch-sd-prio', pr.map(x => x[0]), pr.map(x => x[1]));
 

@@ -8,8 +8,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <div class="app">
+  <body>
+  <div class="app" id="app">
+    <div class="overlay" id="overlay"></div>
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-logo">MS</div>
@@ -52,14 +53,35 @@
 
     <main class="main">
       <header class="topbar">
-        <div>
-          <h1 id="page-title">Ringkasan</h1>
-          <p id="page-subtitle" class="muted">Dashboard Keselamatan dan Kesehatan Kerja</p>
+        <div class="topbar-left">
+          <button class="menu-btn" id="btn-menu" aria-label="Buka menu">&#9776;</button>
+          <div>
+            <h1 id="page-title">Ringkasan</h1>
+            <p id="page-subtitle" class="muted">Dashboard Keselamatan dan Kesehatan Kerja</p>
+          </div>
         </div>
         <div class="topbar-right">
           <div class="last-updated muted" id="last-updated">-</div>
         </div>
       </header>
+
+      <div class="filter-bar" id="filter-bar">
+        <div class="filter-item">
+          <label for="f-site">Site</label>
+          <select id="f-site">
+            <option value="all">Semua Site</option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label for="f-from">Dari Bulan</label>
+          <input type="month" id="f-from" />
+        </div>
+        <div class="filter-item">
+          <label for="f-to">Sampai Bulan</label>
+          <input type="month" id="f-to" />
+        </div>
+        <button class="filter-reset" id="f-reset" type="button">&#8635; Reset</button>
+      </div>
 
       <section class="page active" id="page-ringkasan"></section>
       <section class="page" id="page-kecelakaan"></section>
@@ -76,6 +98,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/filters.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/pages.js"></script>
   <script src="js/app.js"></script>

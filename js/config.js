@@ -41,7 +41,7 @@ const DATA_SOURCES = {
   },
   observasi: {
     label: 'Observasi',
-    url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS7kD0PP7bT2Sc8Be5qcdrdIIBLoxOALksVEWr3sQqpINgWgz7Ll2-Cpj8-2LyIeWCWawkBEk9GYc1U/pub?gid=1120599747&single=true&output=csv'
+    url: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS7kD0PP7bT2Sc8Beq5cdrdIIBLoxOALksVEWr3sQqpINgWgz7Ll2-Cpj8-2LyIeWCWawkBEk9GYc1U/pub?gid=1120599747&single=true&output=csv'
   },
   pelatihan: {
     label: 'Pelatihan',
