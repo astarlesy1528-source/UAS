@@ -123,9 +123,21 @@
 
   document.getElementById('btn-refresh').addEventListener('click', init);
 
+  function renderCurrent() {
+    fillSiteOptions();
+    fillDateRange();
+    const initial = (location.hash || '#ringkasan').replace('#', '');
+    navTo(initial);
+  }
+
   async function init() {
     setStatus('<span class="spinner"></span> Memuat data...');
-    await Data.loadAll();
+    renderCurrent();
+    await Data.loadAll((done, total) => {
+      lastUpdEl.textContent = 'Memuat ' + done + '/' + total + ' sumber...';
+      setStatus('<span class="spinner"></span> Memuat ' + done + '/' + total + ' sumber...');
+      renderCurrent();
+    });
     const okCount = Object.keys(Data.store).filter(k => k[0] !== '_' && Data.store[k].ok).length;
     const total = Object.keys(Data.sources).length;
     lastUpdEl.textContent = 'Diperbarui: ' + new Date().toLocaleTimeString('id-ID');
@@ -135,10 +147,7 @@
       const missing = Object.keys(Data.sources).filter(k => !Data.store[k].ok).map(k => Data.sources[k].label);
       setStatus('<span class="err-dot"></span>' + okCount + '/' + total + ' dimuat. Gagal: ' + missing.join(', '), 'err');
     }
-    fillSiteOptions();
-    fillDateRange();
-    const initial = (location.hash || '#ringkasan').replace('#', '');
-    navTo(initial);
+    renderCurrent();
   }
 
   init();

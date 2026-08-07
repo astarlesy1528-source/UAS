@@ -51,7 +51,7 @@ const Data = (() => {
         return store[key];
       } catch (e) {
         if (attempt < maxAttempts) {
-          await new Promise(r => setTimeout(r, 800 * attempt));
+          await new Promise(r => setTimeout(r, 500 * attempt));
         } else {
           store[key] = { headers: [], rows: [], ok: false, error: e.message };
         }
@@ -60,13 +60,14 @@ const Data = (() => {
     return store[key];
   }
 
-  async function loadAll() {
+  async function loadAll(onProgress) {
     store['_started'] = Date.now();
     const keys = Object.keys(sources);
-    const batchSize = 4;
+    const batchSize = 3;
     for (let i = 0; i < keys.length; i += batchSize) {
       const batch = keys.slice(i, i + batchSize);
       await Promise.all(batch.map(fetchOne));
+      if (typeof onProgress === 'function') onProgress(keys.slice(0, i + batch.length).length, keys.length);
     }
     store['_ended'] = Date.now();
     return store;
