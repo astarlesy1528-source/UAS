@@ -16,7 +16,17 @@ const UI = (() => {
   function chart(canvasId, config) {
     const el = document.getElementById(canvasId);
     if (!el) return;
-    if (charts[canvasId]) { try { charts[canvasId].destroy(); } catch (e) {} }
+    const existing = charts[canvasId];
+    if (existing && existing.canvas === el) {
+      // Reuse the chart instance: swap data/options and redraw in place.
+      try {
+        existing.data = config.data;
+        existing.options = config.options;
+        existing.update();
+        return;
+      } catch (e) {}
+    }
+    if (existing) { try { existing.destroy(); } catch (e) {} }
     try { charts[canvasId] = new Chart(el, config); } catch (e) {}
   }
 

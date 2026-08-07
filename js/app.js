@@ -26,10 +26,19 @@
   }
 
   function renderPage(page) {
-    UI.destroyAll();
     const section = document.getElementById('page-' + PAGES[page]);
     if (!section) return;
-    section.innerHTML = Pages[PAGES[page]]();
+    // Keep existing <canvas> nodes so Chart instances can be reused via chart.update()
+    // instead of being destroyed and recreated on every render.
+    const oldCanvases = {};
+    section.querySelectorAll('canvas').forEach(c => { oldCanvases[c.id] = c; });
+    const temp = document.createElement('div');
+    temp.innerHTML = Pages[PAGES[page]]();
+    temp.querySelectorAll('canvas').forEach(c => {
+      const old = oldCanvases[c.id];
+      if (old) c.parentNode.replaceChild(old, c);
+    });
+    section.replaceChildren(...temp.childNodes);
     UI.flush();
   }
 
