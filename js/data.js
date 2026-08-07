@@ -173,12 +173,35 @@ const Data = (() => {
     });
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }
+  function fAvgByMonth(key, dateField, valueField) {
+    const sumMap = new Map(), cntMap = new Map();
+    fTable(key).forEach(r => {
+      const ym = normalizeDate(r[dateField]);
+      if (!ym) return;
+      sumMap.set(ym, (sumMap.get(ym) || 0) + num(r[valueField]));
+      cntMap.set(ym, (cntMap.get(ym) || 0) + 1);
+    });
+    const arr = [];
+    sumMap.forEach((s, ym) => arr.push([ym, s / cntMap.get(ym)]));
+    return arr.sort((a, b) => a[0].localeCompare(b[0]));
+  }
+  function fAvgBy(key, field, valueField) {
+    const sumMap = new Map(), cntMap = new Map();
+    fTable(key).forEach(r => {
+      const k = r[field] || '(kosong)';
+      sumMap.set(k, (sumMap.get(k) || 0) + num(r[valueField]));
+      cntMap.set(k, (cntMap.get(k) || 0) + 1);
+    });
+    const arr = [];
+    sumMap.forEach((s, k) => arr.push([k, s / cntMap.get(k)]));
+    return arr.sort((a, b) => b[1] - a[1]);
+  }
 
   const api = {
     sources, store, loadAll,
     table, ok, headers: (k) => (store[k] && store[k].ok) ? store[k].headers : [],
     sumRows, countBy, sumBy, groupByMonth, normalizeDate, percent, num, fmt,
-    matchesFilter, fTable, fCountBy, fSumBy, fSumRows, fGroupByMonth, fSumByMonth
+    matchesFilter, fTable, fCountBy, fSumBy, fSumRows, fGroupByMonth, fSumByMonth, fAvgByMonth, fAvgBy
   };
   if (typeof window !== 'undefined') window.Data = api;
   return api;

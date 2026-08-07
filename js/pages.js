@@ -99,6 +99,23 @@ const Pages = (() => {
     ]);
     const mJam = monthTotal('jamKerja', 'Tanggal', 'Total_Jam');
     UI.line('ch-r-jam', mJam.map(x => m2(x[0])), [{ label: 'Total Jam Kerja', data: mJam.map(x => x[1]) }]);
+
+    out += `<div class="section">${sectionTitle('Kinerja per Site')}<div class="grid span2" style="margin-top:0">`;
+    out += card('Kecelakaan per Site', '', `<div class="chart-box sm"><canvas id="ch-r-kec-site"></canvas></div>`);
+    out += card('Hampir Celaka per Site', '', `<div class="chart-box sm"><canvas id="ch-r-hc-site"></canvas></div>`);
+    out += `</div><div class="grid span2" style="margin-top:16px">`;
+    out += card('Izin Kerja per Bulan', '', `<div class="chart-box sm"><canvas id="ch-r-izin-bulan"></canvas></div>`);
+    out += card('Rata-rata Skor Audit per Bulan', '', `<div class="chart-box sm"><canvas id="ch-r-aud-bulan"></canvas></div>`);
+    out += `</div></div>`;
+
+    const kecSite = D.fCountBy('kecelakaan', 'ID_Site');
+    UI.bar('ch-r-kec-site', kecSite.map(x => x[0]), kecSite.map(x => x[1]), { horizontal: true });
+    const hcSite = D.fCountBy('hampirCelaka', 'ID_Site');
+    UI.bar('ch-r-hc-site', hcSite.map(x => x[0]), hcSite.map(x => x[1]), { horizontal: true });
+    const mIzin = monthCount('izinKerja', 'Tanggal');
+    UI.line('ch-r-izin-bulan', mIzin.map(x => m2(x[0])), [{ label: 'Izin Kerja', data: mIzin.map(x => x[1]), color: '#0e5fd8' }]);
+    const mAud = D.fAvgByMonth('audit', 'Tanggal', 'Skor');
+    UI.line('ch-r-aud-bulan', mAud.map(x => m2(x[0])), [{ label: 'Skor Audit', data: mAud.map(x => +x[1].toFixed(1)), color: '#18a05e' }]);
     return out;
   }
 
@@ -146,6 +163,24 @@ const Pages = (() => {
     const heAlasan = D.fCountBy('hentiKerja', 'Alasan');
     UI.bar('ch-k-henti', heAlasan.map(x => x[0]), heAlasan.map(x => x[1]));
 
+    out += `<div class="grid span2" style="margin-top:16px">`;
+    out += card('Kecelakaan per Site', '', `<div class="chart-box sm"><canvas id="ch-k-site"></canvas></div>`);
+    out += card('Durasi Henti Kerja per Alasan', 'Akumulasi jam berhenti', `<div class="chart-box sm"><canvas id="ch-k-henti-jam"></canvas></div>`);
+    out += `</div>`;
+    out += `<div class="grid span2" style="margin-top:16px">`;
+    out += card('Tren Hampir Celaka per Bulan', '', `<div class="chart-box sm"><canvas id="ch-k-hc-bulan"></canvas></div>`);
+    out += card('Tren Henti Kerja per Bulan', '', `<div class="chart-box sm"><canvas id="ch-k-henti-bulan"></canvas></div>`);
+    out += `</div>`;
+
+    const kecSite = D.fCountBy('kecelakaan', 'ID_Site');
+    UI.bar('ch-k-site', kecSite.map(x => x[0]), kecSite.map(x => x[1]));
+    const hentiJam = D.fSumBy('hentiKerja', 'Alasan', 'Durasi_Jam');
+    UI.bar('ch-k-henti-jam', hentiJam.map(x => x[0]), hentiJam.map(x => x[1]), { horizontal: true });
+    const hcBulan = monthCount('hampirCelaka', 'Tanggal');
+    UI.line('ch-k-hc-bulan', hcBulan.map(x => m2(x[0])), [{ label: 'Hampir Celaka', data: hcBulan.map(x => x[1]), color: '#f59e0b' }]);
+    const hentiBulan = monthCount('hentiKerja', 'Tanggal');
+    UI.line('ch-k-henti-bulan', hentiBulan.map(x => m2(x[0])), [{ label: 'Henti Kerja', data: hentiBulan.map(x => x[1]), color: '#e0453e' }]);
+
     const cols = [
       { head: 'ID', cell: r => `<b>${esc(r.ID_Kecelakaan)}</b>` },
       { head: 'Site', cell: r => esc(r.ID_Site) },
@@ -191,6 +226,24 @@ const Pages = (() => {
     UI.bar('ch-iz-jsa', jsaSorted.map(r => r.ID_Izin), jsaSorted.map(r => D.num(r['Skor_Kualitas_JSA'])));
     const jamSite = D.fSumBy('jamKerja', 'ID_Site', 'Total_Jam');
     UI.bar('ch-jk-site', jamSite.map(x => x[0]), jamSite.map(x => x[1]));
+
+    out += `<div class="grid span2" style="margin-top:16px">`;
+    out += card('Izin Kerja per Bulan', '', `<div class="chart-box sm"><canvas id="ch-iz-bulan"></canvas></div>`);
+    out += card('Rata-rata Skor JSA per Bulan', '', `<div class="chart-box sm"><canvas id="ch-iz-jsa-bulan"></canvas></div>`);
+    out += `</div>`;
+    out += `<div class="grid span2" style="margin-top:16px">`;
+    out += card('Jam Lembur per Bulan', '', `<div class="chart-box sm"><canvas id="ch-jk-lembur"></canvas></div>`);
+    out += card('Rata-rata Pekerja per Bulan', 'Jumlah pekerja yang hadir', `<div class="chart-box sm"><canvas id="ch-jk-pekerja"></canvas></div>`);
+    out += `</div>`;
+
+    const mIzin = monthCount('izinKerja', 'Tanggal');
+    UI.line('ch-iz-bulan', mIzin.map(x => m2(x[0])), [{ label: 'Izin', data: mIzin.map(x => x[1]), color: '#7c5cff' }]);
+    const mJsa = D.fAvgByMonth('izinKerja', 'Tanggal', 'Skor_Kualitas_JSA');
+    UI.line('ch-iz-jsa-bulan', mJsa.map(x => m2(x[0])), [{ label: 'Skor JSA', data: mJsa.map(x => +x[1].toFixed(1)), color: '#18a05e' }]);
+    const mLembur = monthTotal('jamKerja', 'Tanggal', 'Jam_Lembur');
+    UI.line('ch-jk-lembur', mLembur.map(x => m2(x[0])), [{ label: 'Jam Lembur', data: mLembur.map(x => x[1]), color: '#f59e0b' }]);
+    const mPekerja = D.fAvgByMonth('jamKerja', 'Tanggal', 'Jml_Pekerja');
+    UI.line('ch-jk-pekerja', mPekerja.map(x => m2(x[0])), [{ label: 'Pekerja', data: mPekerja.map(x => Math.round(x[1])), color: '#0e5fd8' }]);
 
     out += `<div class="section">${card('Jam Kerja per Bulan', 'Akumulasi total jam kerja', `<div class="chart-box"><canvas id="ch-jk-bulan"></canvas></div>`)}</div>`;
     const mJam = monthTotal('jamKerja', 'Tanggal', 'Total_Jam');
@@ -259,6 +312,45 @@ const Pages = (() => {
     const klList = D.fCountBy('kunjunganLapangan', 'Pemimpin');
     UI.bar('ch-k-kl', klList.map(x => x[0]), klList.map(x => x[1]));
 
+    out += `<div class="section">${sectionTitle('Detail Observasi')}<div class="grid span2" style="margin-top:0">`;
+    if (observasiOk) {
+      out += card('Tren Observasi per Bulan', '', `<div class="chart-box sm"><canvas id="ch-ob-bulan"></canvas></div>`);
+      out += card('Observasi per Prioritas', '', `<div class="chart-box sm"><canvas id="ch-ob-prio"></canvas></div>`);
+    } else {
+      out += card('Tren Observasi per Bulan', '', placeholder('Sumber "Observasi" tidak dapat dimuat.', true));
+      out += card('Observasi per Prioritas', '', placeholder('Sumber "Observasi" tidak dapat dimuat.', true));
+    }
+    out += `</div><div class="grid span2" style="margin-top:16px">`;
+    if (observasiOk) {
+      out += card('Status Kontrol Observasi', '', `<div class="chart-box sm"><canvas id="ch-ob-status"></canvas></div>`);
+      out += card('Observasi per Pengamat', '10 pengamat paling aktif', `<div class="chart-box sm"><canvas id="ch-ob-pengamat"></canvas></div>`);
+    } else {
+      out += card('Status Kontrol Observasi', '', placeholder('Sumber "Observasi" tidak dapat dimuat.', true));
+      out += card('Observasi per Pengamat', '', placeholder('Sumber "Observasi" tidak dapat dimuat.', true));
+    }
+    out += `</div></div>`;
+
+    if (observasiOk) {
+      const mObs = monthCount('observasi', 'Tanggal');
+      UI.line('ch-ob-bulan', mObs.map(x => m2(x[0])), [{ label: 'Observasi', data: mObs.map(x => x[1]), color: '#7c5cff' }]);
+      const obPrio = D.fCountBy('observasi', 'Prioritas');
+      UI.doughnut('ch-ob-prio', obPrio.map(x => x[0]), obPrio.map(x => x[1]));
+      const obStatus = D.fCountBy('observasi', 'Status_Kontrol');
+      UI.doughnut('ch-ob-status', obStatus.map(x => x[0]), obStatus.map(x => x[1]));
+      const obPengamat = D.fCountBy('observasi', 'Nama_Pengamat');
+      UI.bar('ch-ob-pengamat', obPengamat.slice(0, 10).map(x => x[0]), obPengamat.slice(0, 10).map(x => x[1]), { horizontal: true });
+    }
+
+    out += `<div class="section">${sectionTitle('Energi Tinggi &amp; Audit')}<div class="grid span2" style="margin-top:0">`;
+    out += card('Observasi Energi Tinggi per Bulan', '', `<div class="chart-box sm"><canvas id="ch-ob-oet-bulan"></canvas></div>`);
+    out += card('Rata-rata Skor Audit per Site', '', `<div class="chart-box sm"><canvas id="ch-ob-aud-site"></canvas></div>`);
+    out += `</div></div>`;
+
+    const mOet = monthCount('observasiEnergiTinggi', 'Tanggal');
+    UI.line('ch-ob-oet-bulan', mOet.map(x => m2(x[0])), [{ label: 'OET', data: mOet.map(x => x[1]), color: '#e0453e' }]);
+    const audSite = D.fAvgBy('audit', 'ID_Site', 'Skor');
+    UI.bar('ch-ob-aud-site', audSite.map(x => x[0]), audSite.map(x => +x[1].toFixed(1)));
+
     out += `<div class="section">${sectionTitle('Program &amp; Pelatihan')}<div class="grid span3" style="margin-top:0">`;
     out += card('Safety Talk per Tema', '', `<div class="chart-box"><canvas id="ch-ob-st"></canvas></div>`);
     out += card('Peserta Pelatihan per Jenis', 'Proporsi jenis pelatihan', `<div class="chart-box sm"><canvas id="ch-ob-pel"></canvas></div>`);
@@ -269,6 +361,24 @@ const Pages = (() => {
     UI.bar('ch-ob-st', stTema.map(x => x[0]), stTema.map(x => x[1]), { horizontal: true });
     const pelJenis = D.fCountBy('pelatihan', 'Jenis');
     UI.doughnut('ch-ob-pel', pelJenis.map(x => x[0]), pelJenis.map(x => x[1]));
+
+    out += `<div class="grid span2" style="margin-top:16px">`;
+    out += card('Safety Talk per Bulan', 'Jumlah sesi', `<div class="chart-box sm"><canvas id="ch-ob-st-bulan"></canvas></div>`);
+    out += card('Pelatihan per Site', 'Jumlah sesi pelatihan', `<div class="chart-box sm"><canvas id="ch-ob-pel-site"></canvas></div>`);
+    out += `</div>`;
+    out += `<div class="grid span2" style="margin-top:16px">`;
+    out += card('Tren Kunjungan Lapangan per Bulan', '', `<div class="chart-box sm"><canvas id="ch-ob-kl-bulan"></canvas></div>`);
+    out += card('Pelatihan per Risiko', '', `<div class="chart-box sm"><canvas id="ch-ob-pel-risiko"></canvas></div>`);
+    out += `</div>`;
+
+    const mST = monthCount('safetyTalk', 'Tanggal');
+    UI.line('ch-ob-st-bulan', mST.map(x => m2(x[0])), [{ label: 'Safety Talk', data: mST.map(x => x[1]), color: '#f59e0b' }]);
+    const pelSite = D.fCountBy('pelatihan', 'ID_Site');
+    UI.bar('ch-ob-pel-site', pelSite.map(x => x[0]), pelSite.map(x => x[1]));
+    const mKL = monthCount('kunjunganLapangan', 'Tanggal');
+    UI.line('ch-ob-kl-bulan', mKL.map(x => m2(x[0])), [{ label: 'Kunjungan', data: mKL.map(x => x[1]), color: '#18a05e' }]);
+    const pelRisiko = D.fCountBy('pelatihan', 'Risiko_Tinggi');
+    UI.doughnut('ch-ob-pel-risiko', pelRisiko.map(x => x[0]), pelRisiko.map(x => x[1]));
 
     const klCols = [
       { head: 'ID', cell: r => `<b>${esc(r.ID_Kunjungan)}</b>` },
@@ -333,6 +443,23 @@ const Pages = (() => {
     const pr = D.fCountBy('tindakan', 'Prioritas');
     UI.doughnut('ch-sd-status', st.map(x => x[0]), st.map(x => x[1]));
     UI.doughnut('ch-sd-prio', pr.map(x => x[0]), pr.map(x => x[1]));
+
+    out += `<div class="section">${sectionTitle('Tindak Lanjut &amp; Tren')}<div class="grid span2" style="margin-top:0">`;
+    out += card('Tindakan per Site', '', `<div class="chart-box sm"><canvas id="ch-sd-tind-site"></canvas></div>`);
+    out += card('Tindakan per SIF', '', `<div class="chart-box sm"><canvas id="ch-sd-tind-sif"></canvas></div>`);
+    out += `</div><div class="grid span2" style="margin-top:16px">`;
+    out += card('Tren Jatuh Tempo per Bulan', 'Jumlah tindakan yang jatuh tempo', `<div class="chart-box sm"><canvas id="ch-sd-tind-bulan"></canvas></div>`);
+    out += card('Rata-rata Skor Iklim K3 per Site', '', `<div class="chart-box sm"><canvas id="ch-sd-surv-site"></canvas></div>`);
+    out += `</div></div>`;
+
+    const tindSite = D.fCountBy('tindakan', 'ID_Site');
+    UI.bar('ch-sd-tind-site', tindSite.map(x => x[0]), tindSite.map(x => x[1]));
+    const tindSif = D.fCountBy('tindakan', 'Terkait_SIF');
+    UI.doughnut('ch-sd-tind-sif', tindSif.map(x => x[0]), tindSif.map(x => x[1]));
+    const mTind = D.fGroupByMonth('tindakan', 'Jatuh_Tempo');
+    UI.line('ch-sd-tind-bulan', mTind.map(x => m2(x[0])), [{ label: 'Jatuh Tempo', data: mTind.map(x => x[1]), color: '#e0453e' }]);
+    const survSite = D.fAvgBy('surveiIklimK3', 'ID_Site', 'Skor_Budaya_K3');
+    UI.bar('ch-sd-surv-site', survSite.map(x => x[0]), survSite.map(x => +x[1].toFixed(1)));
 
     const tCols = [
       { head: 'ID', cell: r => `<b>${esc(r.ID_Tindakan)}</b>` },
